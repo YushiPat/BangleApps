@@ -1,0 +1,75 @@
+var heartRate;
+var intervalHeartRate;
+var intervalGPS;
+var intervalAccelerometer;
+var intervalBarometer;
+var data = []; // Array to store latest data for each sensor
+var alertActive = false; // Flag to track if alert is currently active
+var alertCooldown = false; // Flag to track cooldown period
+
+// Function to display alert on the watch screen
+function showAlert(title, message) {
+    console.log('Showing alert:', title, message); // Log alert details
+    g.clear(); // Clear screen
+    g.setColor("#ff0000"); // Set color to red
+    g.setFont("6x8", 4); // Increase font size
+    g.setFontAlign(0, 0); // Center text
+    g.drawString(title, g.getWidth()/2, g.getHeight()/2 - 10); // Display title
+    g.drawString(message, g.getWidth()/2, g.getHeight()/2 + 10); // Display message
+    alertActive = true; // Set alert active flag
+
+    // Continuous buzzing until alert dismissed
+    var buzzerInterval = setInterval(function() {
+        Bangle.buzz(); // Vibrate watch
+    }, 1000); // Buzz every second (adjust as needed)
+
+    // Watch for touch event to dismiss alert
+    Bangle.on('touch', function(zone, e) {
+        if (alertActive) {
+            console.log('Alert dismissed by touch'); // Log alert dismissal
+            g.clear(); // Clear screen on tap
+            clearInterval(buzzerInterval); // Stop buzzing
+            alertActive = false; // Clear alert active flag
+            alertCooldown = true; // Set cooldown flag
+            setTimeout(function() {
+                alertCooldown = false; // Clear cooldown flag after cooldown period (e.g., 5 minutes)
+            }, 300000); // 5 minutes cooldown period (adjust as needed)
+
+            // Detach touch event handler to prevent multiple dismissals
+            Bangle.removeListener('touch');
+            // Return to clock screen
+            Bangle.showLauncher();
+        }
+    });
+}
+
+
+
+// Function to read barometer data
+function readBarometerData() {
+    Bangle.setBarometerPower(1); // Turn on barometer
+    intervalBarometer = setInterval(function() {
+        Bangle.getPressure().then(function(pressure) {
+            var barometerData = { type: 'Barometer', timestamp: new Date().toISOString(), data: pressure };
+            console.log('Barometer data:', barometerData);
+            // Store latest barometer data
+            data.push(barometerData);
+        }).catch(function(error) {
+            console.error('Error getting barometer data:', error);
+        });
+    }, 5000); // Read barometer data every 5 minutes (adjust as needed)
+}
+
+
+readBarometerData();
+
+// Function to stop all monitoring intervals
+function stopMonitoring() {
+    clearInterval(intervalBarometer);
+}
+
+// Example of stopping monitoring after a certain time (e.g., 1 hour)
+setTimeout(function() {
+    stopMonitoring();
+    console.log('Monitoring stopped');
+}, 3600000); // Stop monitoring after 1 hour (adjust as needed)
